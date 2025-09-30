@@ -205,12 +205,11 @@ app.get('/meta/', async (c) => {
     return c.json({ error: 'Failed to decode source image' }, 422)
   }
 
-  let thumbHash: string
+  let thumbHash: string | null = null
   try {
     thumbHash = await generateThumbHash(decoded)
   } catch (error) {
     console.error('Failed to generate thumbhash', error)
-    return c.json({ error: 'Unable to generate thumbhash' }, 500)
   }
 
   c.header('Cache-Control', 'public, max-age=31536000')
