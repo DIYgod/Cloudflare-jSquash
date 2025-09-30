@@ -40,6 +40,23 @@ export const encodeImage = async (image: ImageData, format: ImageFormat): Promis
   }
 }
 
+const ASPECT_TOLERANCE = 0.01
+
+const getAspectRatio = (width: number, height: number) => width / height
+
+const shouldCropToMatchAspect = (source: ImageData, targetWidth: number, targetHeight: number) => {
+  const sourceAspect = getAspectRatio(source.width, source.height)
+  const targetAspect = getAspectRatio(targetWidth, targetHeight)
+
+  if (!Number.isFinite(sourceAspect) || !Number.isFinite(targetAspect)) {
+    return false
+  }
+
+  const relativeDifference = Math.abs(sourceAspect - targetAspect) / sourceAspect
+
+  return relativeDifference > ASPECT_TOLERANCE
+}
+
 export const resizeImage = async (image: ImageData, width: number, height: number) => {
   if (width <= 0 || height <= 0) {
     throw new Error('Target dimensions must be greater than zero')
@@ -49,5 +66,7 @@ export const resizeImage = async (image: ImageData, width: number, height: numbe
     return image
   }
 
-  return resize(image, { width, height, fitMethod: 'stretch' })
+  const fitMethod = shouldCropToMatchAspect(image, width, height) ? 'contain' : 'stretch'
+
+  return resize(image, { width, height, fitMethod })
 }
