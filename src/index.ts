@@ -55,8 +55,24 @@ app.get('/', async (c) => {
     return c.json({ error: 'Missing url parameter' }, 400)
   }
 
-  const widthParam = parseDimensionParam(c.req.query('width'))
-  const heightParam = parseDimensionParam(c.req.query('height'))
+  const rawWidth = c.req.query('width')
+  const rawHeight = c.req.query('height')
+  const widthParam = parseDimensionParam(rawWidth)
+  const heightParam = parseDimensionParam(rawHeight)
+
+  if (rawWidth && widthParam === undefined) {
+    return c.json({ error: 'Invalid width parameter' }, 400)
+  }
+
+  if (rawHeight && heightParam === undefined) {
+    return c.json({ error: 'Invalid height parameter' }, 400)
+  }
+
+  const formatParam = c.req.query('format')
+  const requestedTargetFormat = parseTargetFormatParam(formatParam)
+  if (formatParam && !requestedTargetFormat) {
+    return c.json({ error: 'Unsupported output format requested' }, 400)
+  }
 
   let remote
   try {
@@ -69,18 +85,32 @@ app.get('/', async (c) => {
     return c.json({ error: 'Unexpected error fetching image' }, 502)
   }
 
-  try {
-    await ensureCodecsInitialised()
-  } catch (error) {
-    console.error('Failed to initialise codecs', error)
-    return c.json({ error: 'Failed to prepare image codecs' }, 500)
-  }
-
   let sourceFormat: ImageFormat
   try {
     sourceFormat = ensureSupportedFormat(remote.buffer, remote.contentType)
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'Unsupported image format' }, 415)
+  }
+
+  const shouldReturnOriginal =
+    widthParam === undefined &&
+    heightParam === undefined &&
+    (!requestedTargetFormat || requestedTargetFormat === sourceFormat)
+
+  if (shouldReturnOriginal) {
+    const headers = new Headers({
+      'Content-Type': remote.contentType ?? formatToContentType(sourceFormat),
+      'Cache-Control': 'public, max-age=31536000'
+    })
+    headers.set('Content-Length', remote.buffer.byteLength.toString())
+    return new Response(remote.buffer, { status: 200, headers })
+  }
+
+  try {
+    await ensureCodecsInitialised()
+  } catch (error) {
+    console.error('Failed to initialise codecs', error)
+    return c.json({ error: 'Failed to prepare image codecs' }, 500)
   }
 
   let decoded: ImageData
@@ -91,31 +121,31 @@ app.get('/', async (c) => {
     return c.json({ error: 'Failed to decode source image' }, 422)
   }
 
-  let targetWidth: number
-  let targetHeight: number
-  try {
-    const target = resolveDimensions(
-      { width: decoded.width, height: decoded.height },
-      { width: widthParam, height: heightParam }
-    )
-    targetWidth = target.width
-    targetHeight = target.height
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Invalid resize parameters' }, 400)
+  const needsResize = widthParam !== undefined || heightParam !== undefined
+
+  let targetWidth = decoded.width
+  let targetHeight = decoded.height
+  if (needsResize) {
+    try {
+      const target = resolveDimensions(
+        { width: decoded.width, height: decoded.height },
+        { width: widthParam, height: heightParam }
+      )
+      targetWidth = target.width
+      targetHeight = target.height
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : 'Invalid resize parameters' }, 400)
+    }
   }
 
   let resized = decoded
-  try {
-    resized = await resizeImage(decoded, targetWidth, targetHeight)
-  } catch (error: any) {
-    console.error('Failed to resize image', error.stack)
-    return c.json({ error: 'Unable to resize image with the given parameters' }, 422)
-  }
-
-  const formatParam = c.req.query('format')
-  const requestedTargetFormat = parseTargetFormatParam(formatParam)
-  if (formatParam && !requestedTargetFormat) {
-    return c.json({ error: 'Unsupported output format requested' }, 400)
+  if (needsResize) {
+    try {
+      resized = await resizeImage(decoded, targetWidth, targetHeight)
+    } catch (error: any) {
+      console.error('Failed to resize image', error.stack)
+      return c.json({ error: 'Unable to resize image with the given parameters' }, 422)
+    }
   }
   const targetFormat: ImageFormat = requestedTargetFormat ?? 'webp'
 

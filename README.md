@@ -7,8 +7,9 @@ A Cloudflare Worker built with [Hono](https://hono.dev/) and [jSquash](https://g
 ### `GET /?url=<image_url>&width=<width>&height=<height>&format=<format>`
 
 - `url` (required): Absolute URL of the source image.
-- `width`, `height` (optional): Desired output dimensions; at least one must be provided.
-  - If only `width` is supplied the height is inferred from the source aspect ratio, and vice versa.
+- `width`, `height` (optional): Desired output dimensions.
+  - Supply one or both values to resize while preserving the source aspect ratio.
+  - If neither is provided, the original image is returned unchanged.
 - `format` (optional): Desired output format (e.g., `jpeg`, `png`, `webp`). If not specified, defaults to `webp`.
 
 Returns: The transformed image encoded in its original format (JPEG, PNG, or WebP). The `Content-Type` mirrors the source.
@@ -52,4 +53,3 @@ pnpm cf-typegen
 ```
 
 This command updates the `CloudflareBindings` type so that Hono routes have accurate autocompletion.
-
