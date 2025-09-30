@@ -7,43 +7,34 @@ import { init as initWebpEncode } from '@jsquash/webp/encode'
 import { initResize } from '@jsquash/resize'
 import { simd } from 'wasm-feature-detect'
 
-import type { Bindings } from '../bindings'
+import JPEG_DEC_WASM from '@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm'
+import JPEG_ENC_WASM from '@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm'
+import PNG_WASM from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm'
+import WEBP_DEC_WASM from '@jsquash/webp/codec/dec/webp_dec.wasm'
+import WEBP_ENC_WASM from '@jsquash/webp/codec/enc/webp_enc.wasm'
+import WEBP_ENC_SIMD_WASM from '@jsquash/webp/codec/enc/webp_enc_simd.wasm'
+import RESIZE_WASM from '@jsquash/resize/lib/resize/pkg/squoosh_resize_bg.wasm'
 
 let initPromise: Promise<void> | null = null
 let webpUsesSimd: boolean | null = null
 
-const ensureEnvModule = (name: keyof Bindings, module: WebAssembly.Module | undefined) => {
-  if (!module) {
-    throw new Error(`Missing WASM binding for ${name}`)
-  }
-  return module
-}
-
-async function initialiseCodecs(env: Bindings) {
-  const jpegDec = ensureEnvModule('JPEG_DEC_WASM', env.JPEG_DEC_WASM)
-  const jpegEnc = ensureEnvModule('JPEG_ENC_WASM', env.JPEG_ENC_WASM)
-  const png = ensureEnvModule('PNG_WASM', env.PNG_WASM)
-  const webpDec = ensureEnvModule('WEBP_DEC_WASM', env.WEBP_DEC_WASM)
-  const webpEnc = ensureEnvModule('WEBP_ENC_WASM', env.WEBP_ENC_WASM)
-  const webpEncSimd = ensureEnvModule('WEBP_ENC_SIMD_WASM', env.WEBP_ENC_SIMD_WASM)
-  const resizeWasm = ensureEnvModule('RESIZE_WASM', env.RESIZE_WASM)
-
+async function initialiseCodecs() {
   await Promise.all([
-    initJpegDecode(jpegDec),
-    initJpegEncode(jpegEnc),
-    initPngDecode(png),
-    initPngEncode(png),
-    initWebpDecode(webpDec),
-    initResize(resizeWasm)
+    initJpegDecode(JPEG_DEC_WASM),
+    initJpegEncode(JPEG_ENC_WASM),
+    initPngDecode(PNG_WASM),
+    initPngEncode(PNG_WASM),
+    initWebpDecode(WEBP_DEC_WASM),
+    initResize(RESIZE_WASM)
   ])
 
   webpUsesSimd = await simd()
-  await initWebpEncode(webpUsesSimd ? webpEncSimd : webpEnc)
+  await initWebpEncode(webpUsesSimd ? WEBP_ENC_SIMD_WASM : WEBP_ENC_WASM)
 }
 
-export const ensureCodecsInitialised = (env: Bindings) => {
+export const ensureCodecsInitialised = () => {
   if (!initPromise) {
-    initPromise = initialiseCodecs(env)
+    initPromise = initialiseCodecs()
   }
   return initPromise
 }

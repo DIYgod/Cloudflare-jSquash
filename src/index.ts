@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 
-import type { Bindings } from './bindings'
 import { ensureCodecsInitialised } from './lib/codec-init'
 import { detectImageFormat, formatToContentType } from './lib/detect-format'
 import type { ImageFormat } from './lib/detect-format'
@@ -9,7 +8,7 @@ import { FetchImageError, fetchRemoteImage } from './lib/image-fetcher'
 import { decodeImage, encodeImage, resizeImage } from './lib/image-processor'
 import { generateThumbHash } from './lib/thumbhash'
 
-const app = new Hono<{ Bindings: Bindings }>()
+const app = new Hono()
 
 const parseDimensionParam = (value: string | undefined | null): number | undefined => {
   if (value === undefined || value === null || value === '') {
@@ -51,7 +50,7 @@ app.get('/', async (c) => {
   }
 
   try {
-    await ensureCodecsInitialised(c.env)
+    await ensureCodecsInitialised()
   } catch (error) {
     console.error('Failed to initialise codecs', error)
     return c.json({ error: 'Failed to prepare image codecs' }, 500)
@@ -128,7 +127,7 @@ app.get('/meta/', async (c) => {
   }
 
   try {
-    await ensureCodecsInitialised(c.env)
+    await ensureCodecsInitialised()
   } catch (error) {
     console.error('Failed to initialise codecs', error)
     return c.json({ error: 'Failed to prepare image codecs' }, 500)
