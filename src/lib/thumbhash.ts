@@ -22,7 +22,7 @@ const scaleDown = async (image: ImageData): Promise<ImageData> => {
   const targetWidth = Math.max(1, Math.round(image.width / scale))
   const targetHeight = Math.max(1, Math.round(image.height / scale))
 
-  return resize(image, { width: targetWidth, height: targetHeight, fitMethod: 'stretch' })
+  return resize(image, { width: targetWidth, height: targetHeight, fitMethod: 'stretch', method: 'triangle' })
 }
 
 export const generateThumbHash = async (image: ImageData): Promise<string> => {

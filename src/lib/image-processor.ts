@@ -79,5 +79,5 @@ export const resizeImage = async (image: ImageData, width: number, height: numbe
 
   const fitMethod = shouldCropToMatchAspect(image, width, height) ? 'contain' : 'stretch'
 
-  return resize(image, { width, height, fitMethod })
+  return resize(image, { width, height, fitMethod, method: 'triangle' })
 }
