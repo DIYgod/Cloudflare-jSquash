@@ -54,7 +54,18 @@ const shouldCropToMatchAspect = (source: ImageData, targetWidth: number, targetH
 
   const relativeDifference = Math.abs(sourceAspect - targetAspect) / sourceAspect
 
-  return relativeDifference > ASPECT_TOLERANCE
+  if (relativeDifference <= ASPECT_TOLERANCE) {
+    return false
+  }
+
+  if (targetAspect > sourceAspect) {
+    const cropHeight = source.width / targetAspect
+    return cropHeight >= 1
+  }
+
+  const cropWidth = source.height * targetAspect
+
+  return cropWidth >= 1
 }
 
 export const resizeImage = async (image: ImageData, width: number, height: number) => {
