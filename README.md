@@ -1,21 +1,55 @@
-```txt
-npm install
-npm run dev
+# Cloudflare Image Converter
+
+A Cloudflare Worker built with [Hono](https://hono.dev/) and [jSquash](https://github.com/jamsinclair/jSquash) for on-demand image resizing and metadata retrieval.
+
+## Routes
+
+### `GET /?url=<image_url>&width=<width>&height=<height>&format=<format>`
+
+- `url` (required): Absolute URL of the source image.
+- `width`, `height` (optional): Desired output dimensions; at least one must be provided.
+  - If only `width` is supplied the height is inferred from the source aspect ratio, and vice versa.
+- `format` (optional): Desired output format (e.g., `jpeg`, `png`, `webp`). If not specified, defaults to `webp`.
+
+Returns: The transformed image encoded in its original format (JPEG, PNG, or WebP). The `Content-Type` mirrors the source.
+
+### `GET /meta/?url=<image_url>`
+
+Returns JSON:
+
+```json
+{
+  "width": <number>,
+  "height": <number>,
+  "thumbHash": "<base64>"
+}
 ```
 
-```txt
-npm run deploy
+- `thumbHash` is a [ThumbHash](https://github.com/evanw/thumbhash) placeholder that can be rendered on the client for a quick preview.
+
+## Local Development
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+- `pnpm dev` runs Vite with the Cloudflare Workers dev server adapter.
 
-```txt
-npm run cf-typegen
+## Build & Deploy
+
+```bash
+pnpm build   # Emits dist/worker_image_transformations
+pnpm deploy  # Builds and deploys via Wrangler
 ```
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+## Cloudflare Type Synchronisation
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+Whenever `wrangler.jsonc` changes, refresh the generated bindings:
+
+```bash
+pnpm cf-typegen
 ```
+
+This command updates the `CloudflareBindings` type so that Hono routes have accurate autocompletion.
+

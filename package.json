@@ -1,5 +1,5 @@
 {
-  "name": "worker-image-transformations",
+  "name": "cloudflare-image-converter",
   "type": "module",
   "scripts": {
     "dev": "vite",
