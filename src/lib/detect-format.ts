@@ -1,10 +1,11 @@
-export type ImageFormat = 'jpeg' | 'png' | 'webp'
+export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif'
 
 const MIME_TO_FORMAT: Record<string, ImageFormat> = {
   'image/jpeg': 'jpeg',
   'image/jpg': 'jpeg',
   'image/png': 'png',
-  'image/webp': 'webp'
+  'image/webp': 'webp',
+  'image/avif': 'avif'
 }
 
 export const detectImageFormat = (buffer: Uint8Array, contentType?: string | null): ImageFormat | null => {
@@ -47,6 +48,19 @@ export const detectImageFormat = (buffer: Uint8Array, contentType?: string | nul
     return 'webp'
   }
 
+  if (
+    buffer.length >= 12 &&
+    buffer[4] === 0x66 && // f
+    buffer[5] === 0x74 && // t
+    buffer[6] === 0x79 && // y
+    buffer[7] === 0x70 // p
+  ) {
+    const majorBrand = String.fromCharCode(buffer[8], buffer[9], buffer[10], buffer[11])
+    if (majorBrand === 'avif' || majorBrand === 'avis' || majorBrand === 'av01') {
+      return 'avif'
+    }
+  }
+
   return null
 }
 
@@ -58,6 +72,8 @@ export const formatToContentType = (format: ImageFormat): string => {
       return 'image/png'
     case 'webp':
       return 'image/webp'
+    case 'avif':
+      return 'image/avif'
     default:
       return 'application/octet-stream'
   }

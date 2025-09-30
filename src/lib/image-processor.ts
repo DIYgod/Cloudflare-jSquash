@@ -4,6 +4,8 @@ import decodePng from '@jsquash/png/decode'
 import encodePng from '@jsquash/png/encode'
 import decodeWebp from '@jsquash/webp/decode'
 import encodeWebp from '@jsquash/webp/encode'
+import decodeAvif from '@jsquash/avif/decode'
+import encodeAvif from '@jsquash/avif/encode'
 import resize from '@jsquash/resize'
 
 import type { ImageFormat } from './detect-format'
@@ -16,6 +18,8 @@ export const decodeImage = async (data: ArrayBuffer, format: ImageFormat): Promi
       return decodePng(data)
     case 'webp':
       return decodeWebp(data)
+    case 'avif':
+      return decodeAvif(data)
     default:
       throw new Error(`Unsupported image format: ${format}`)
   }
@@ -29,6 +33,8 @@ export const encodeImage = async (image: ImageData, format: ImageFormat): Promis
       return encodePng(image)
     case 'webp':
       return encodeWebp(image)
+    case 'avif':
+      return encodeAvif(image)
     default:
       throw new Error(`Unsupported image format: ${format}`)
   }

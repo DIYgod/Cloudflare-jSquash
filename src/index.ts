@@ -29,6 +29,26 @@ const ensureSupportedFormat = (buffer: ArrayBuffer, contentType: string | null):
   return format
 }
 
+const parseTargetFormatParam = (value: string | undefined | null): ImageFormat | null => {
+  if (!value) {
+    return null
+  }
+  const normalised = value.trim().toLowerCase()
+  switch (normalised) {
+    case 'jpeg':
+    case 'jpg':
+      return 'jpeg'
+    case 'png':
+      return 'png'
+    case 'webp':
+      return 'webp'
+    case 'avif':
+      return 'avif'
+    default:
+      return null
+  }
+}
+
 app.get('/', async (c) => {
   const url = c.req.query('url')
   if (!url) {
@@ -56,16 +76,16 @@ app.get('/', async (c) => {
     return c.json({ error: 'Failed to prepare image codecs' }, 500)
   }
 
-  let format: ImageFormat
+  let sourceFormat: ImageFormat
   try {
-    format = ensureSupportedFormat(remote.buffer, remote.contentType)
+    sourceFormat = ensureSupportedFormat(remote.buffer, remote.contentType)
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'Unsupported image format' }, 415)
   }
 
   let decoded: ImageData
   try {
-    decoded = await decodeImage(remote.buffer, format)
+    decoded = await decodeImage(remote.buffer, sourceFormat)
   } catch (error) {
     console.error('Failed to decode image', error)
     return c.json({ error: 'Failed to decode source image' }, 422)
@@ -92,17 +112,24 @@ app.get('/', async (c) => {
     return c.json({ error: 'Unable to resize image with the given parameters' }, 422)
   }
 
+  const formatParam = c.req.query('format')
+  const requestedTargetFormat = parseTargetFormatParam(formatParam)
+  if (formatParam && !requestedTargetFormat) {
+    return c.json({ error: 'Unsupported output format requested' }, 400)
+  }
+  const targetFormat: ImageFormat = requestedTargetFormat ?? 'webp'
+
   let encoded: ArrayBuffer
   try {
-    encoded = await encodeImage(resized, format)
+    encoded = await encodeImage(resized, targetFormat)
   } catch (error) {
     console.error('Failed to encode image', error)
     return c.json({ error: 'Failed to encode resized image' }, 500)
   }
 
   const headers = new Headers({
-    'Content-Type': formatToContentType(format),
-    'Cache-Control': 'public, max-age=3600'
+    'Content-Type': formatToContentType(targetFormat),
+    'Cache-Control': 'public, max-age=31536000'
   })
   headers.set('Content-Length', encoded.byteLength.toString())
 
@@ -156,7 +183,7 @@ app.get('/meta/', async (c) => {
     return c.json({ error: 'Unable to generate thumbhash' }, 500)
   }
 
-  c.header('Cache-Control', 'public, max-age=3600')
+  c.header('Cache-Control', 'public, max-age=31536000')
   return c.json({
     width: decoded.width,
     height: decoded.height,
