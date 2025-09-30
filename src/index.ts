@@ -107,8 +107,8 @@ app.get('/', async (c) => {
   let resized = decoded
   try {
     resized = await resizeImage(decoded, targetWidth, targetHeight)
-  } catch (error) {
-    console.error('Failed to resize image', error)
+  } catch (error: any) {
+    console.error('Failed to resize image', error.stack)
     return c.json({ error: 'Unable to resize image with the given parameters' }, 422)
   }
 
