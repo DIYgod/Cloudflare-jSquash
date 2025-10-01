@@ -21,12 +21,11 @@ const parseDimensionParam = (value: string | undefined | null): number | undefin
   return parsed
 }
 
-const ensureSupportedFormat = (buffer: ArrayBuffer, contentType: string | null): ImageFormat => {
-  const format = detectImageFormat(new Uint8Array(buffer), contentType)
-  if (!format) {
-    throw new Error('Unsupported or unrecognised image format')
-  }
-  return format
+const detectSupportedFormat = (
+  buffer: ArrayBuffer,
+  contentType: string | null
+): ImageFormat | null => {
+  return detectImageFormat(new Uint8Array(buffer), contentType)
 }
 
 const parseTargetFormatParam = (value: string | undefined | null): ImageFormat | null => {
@@ -85,11 +84,15 @@ app.get('/', async (c) => {
     return c.json({ error: 'Unexpected error fetching image' }, 502)
   }
 
-  let sourceFormat: ImageFormat
-  try {
-    sourceFormat = ensureSupportedFormat(remote.buffer, remote.contentType)
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Unsupported image format' }, 415)
+  const sourceFormat = detectSupportedFormat(remote.buffer, remote.contentType)
+
+  if (!sourceFormat) {
+    const headers = new Headers({
+      'Cache-Control': 'public, max-age=31536000'
+    })
+    headers.set('Content-Type', remote.contentType ?? 'application/octet-stream')
+    headers.set('Content-Length', remote.buffer.byteLength.toString())
+    return new Response(remote.buffer, { status: 200, headers })
   }
 
   const shouldReturnOriginal =
@@ -190,11 +193,9 @@ app.get('/meta/', async (c) => {
     return c.json({ error: 'Failed to prepare image codecs' }, 500)
   }
 
-  let format: ImageFormat
-  try {
-    format = ensureSupportedFormat(remote.buffer, remote.contentType)
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'Unsupported image format' }, 415)
+  const format = detectSupportedFormat(remote.buffer, remote.contentType)
+  if (!format) {
+    return c.json({ error: 'Unsupported image format' }, 415)
   }
 
   let decoded: ImageData

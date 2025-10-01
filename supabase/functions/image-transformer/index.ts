@@ -36,15 +36,11 @@ const parseDimensionParam = (
   return parsed;
 };
 
-const ensureSupportedFormat = (
+const detectSupportedFormat = (
   buffer: ArrayBuffer,
   contentType: string | null,
-): ImageFormat => {
-  const format = detectImageFormat(new Uint8Array(buffer), contentType);
-  if (!format) {
-    throw new Error("Unsupported or unrecognised image format.");
-  }
-  return format;
+): ImageFormat | null => {
+  return detectImageFormat(new Uint8Array(buffer), contentType);
 };
 
 const parseTargetFormatParam = (
@@ -107,13 +103,18 @@ const transformHandler = async (c: Context) => {
     return c.json({ error: "Unexpected error fetching image." }, 502);
   }
 
-  let sourceFormat: ImageFormat;
-  try {
-    sourceFormat = ensureSupportedFormat(remote.buffer, remote.contentType);
-  } catch (error) {
-    return c.json({
-      error: error instanceof Error ? error.message : "Unsupported image format.",
-    }, 415);
+  const sourceFormat = detectSupportedFormat(remote.buffer, remote.contentType);
+
+  if (!sourceFormat) {
+    const headers = new Headers({
+      "Cache-Control": CACHE_HEADER_VALUE,
+    });
+    headers.set(
+      "Content-Type",
+      remote.contentType ?? "application/octet-stream",
+    );
+    headers.set("Content-Length", remote.buffer.byteLength.toString());
+    return new Response(remote.buffer, { status: 200, headers });
   }
 
   const shouldReturnOriginal =
@@ -219,13 +220,9 @@ const metaHandler = async (c: Context) => {
     return c.json({ error: "Failed to prepare image codecs." }, 500);
   }
 
-  let format: ImageFormat;
-  try {
-    format = ensureSupportedFormat(remote.buffer, remote.contentType);
-  } catch (error) {
-    return c.json({
-      error: error instanceof Error ? error.message : "Unsupported image format.",
-    }, 415);
+  const format = detectSupportedFormat(remote.buffer, remote.contentType);
+  if (!format) {
+    return c.json({ error: "Unsupported image format." }, 415);
   }
 
   let decoded: ImageData;
