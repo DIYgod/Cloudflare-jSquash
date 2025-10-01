@@ -37,6 +37,18 @@ export const imageRefererMatches: ImageRefererMatch[] = [
   },
 ];
 
+const imageProxyEndpoint = (() => {
+  try {
+    if (typeof Deno !== "undefined" && typeof Deno.env?.get === "function") {
+      const value = Deno.env.get("IMAGE_PROXY")?.trim();
+      return value && value.length > 0 ? value : null;
+    }
+  } catch {
+    // Ignore environments where Deno.env access is not permitted.
+  }
+  return null;
+})();
+
 export interface RemoteImage {
   buffer: ArrayBuffer;
   contentType: string | null;
@@ -51,6 +63,22 @@ export class FetchImageError extends Error {
     this.status = status;
   }
 }
+
+const buildRequestUrl = (original: URL): { url: URL; isProxied: boolean } => {
+  if (!imageProxyEndpoint) {
+    return { url: original, isProxied: false };
+  }
+
+  let proxyUrl: URL;
+  try {
+    proxyUrl = new URL(imageProxyEndpoint);
+  } catch {
+    throw new FetchImageError("Invalid IMAGE_PROXY environment variable.");
+  }
+
+  proxyUrl.searchParams.set("url", original.toString());
+  return { url: proxyUrl, isProxied: true };
+};
 
 export async function fetchRemoteImage(imageUrl: string): Promise<RemoteImage> {
   let parsed: URL;
@@ -77,22 +105,26 @@ export async function fetchRemoteImage(imageUrl: string): Promise<RemoteImage> {
     }
   }
 
+  const { url: requestUrl, isProxied } = buildRequestUrl(parsed);
+
   const headers = new Headers({
     "User-Agent": DEFAULT_USER_AGENT,
     "Accept": ACCEPT_HEADER,
   });
 
-  if (resolvedReferer) {
-    headers.set("Referer", resolvedReferer);
+  if (!isProxied) {
+    if (resolvedReferer) {
+      headers.set("Referer", resolvedReferer);
+    }
+
+    if (resolvedOrigin && resolvedOrigin !== "null") {
+      headers.set("Origin", resolvedOrigin);
+    } else if (matchedReferer?.force && resolvedReferer) {
+      headers.set("Origin", resolvedReferer);
+    }
   }
 
-  if (resolvedOrigin && resolvedOrigin !== "null") {
-    headers.set("Origin", resolvedOrigin);
-  } else if (matchedReferer?.force && resolvedReferer) {
-    headers.set("Origin", resolvedReferer);
-  }
-
-  const response = await fetch(parsed.toString(), {
+  const response = await fetch(requestUrl.toString(), {
     headers,
     redirect: "follow",
   });
