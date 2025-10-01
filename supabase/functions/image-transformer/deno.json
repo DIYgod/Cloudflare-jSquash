@@ -2,7 +2,8 @@
   "imports": {
     "@/": "./",
     "hono": "jsr:@hono/hono",
-    "thumbhash": "https://esm.sh/thumbhash@0.1.1?target=deno"
+    "thumbhash": "https://esm.sh/thumbhash@0.1.1?target=deno",
+    "https://deno.land/std@0.177.1/node/process.ts": "./lib/shims/process.ts"
   },
   "compilerOptions": {
     "strict": true
