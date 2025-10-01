@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "@/": "./",
+    "hono": "jsr:@hono/hono",
+    "thumbhash": "https://esm.sh/thumbhash@0.1.1?target=deno"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}
