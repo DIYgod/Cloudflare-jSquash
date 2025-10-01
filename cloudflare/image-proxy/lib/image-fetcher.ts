@@ -36,11 +36,6 @@ export const imageRefererMatches: ImageRefererMatch[] = [
   }
 ]
 
-export type RemoteImage = {
-  buffer: ArrayBuffer
-  contentType: string | null
-}
-
 export class FetchImageError extends Error {
   status?: number
 
@@ -51,7 +46,42 @@ export class FetchImageError extends Error {
   }
 }
 
-export const fetchRemoteImage = async (imageUrl: string): Promise<RemoteImage> => {
+const resolveRefererFor = (parsed: URL): { referer: string; origin: string } => {
+  const origin = parsed.origin
+  const matchedReferer = imageRefererMatches.find(({ url }) => url.test(parsed.href))
+  const referer = matchedReferer?.referer ?? origin
+
+  if (!matchedReferer) {
+    return { referer, origin }
+  }
+
+  try {
+    const refererUrl = new URL(referer)
+    return { referer, origin: refererUrl.origin }
+  } catch {
+    return { referer, origin: referer }
+  }
+}
+
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 365
+const CACHE_TTL_BY_STATUS: Record<string, number> = {
+  '200-299': CACHE_TTL_SECONDS,
+  '301-308': CACHE_TTL_SECONDS,
+  '400-599': 0
+}
+
+const buildUpstreamHeaders = (parsed: URL): Headers => {
+  const { referer, origin } = resolveRefererFor(parsed)
+  const headers = new Headers({
+    'User-Agent': DEFAULT_UA,
+    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    Referer: referer,
+    Origin: origin
+  })
+  return headers
+}
+
+export const fetchRemoteImage = async (imageUrl: string): Promise<Response> => {
   let parsed: URL
   try {
     parsed = new URL(imageUrl)
@@ -63,37 +93,19 @@ export const fetchRemoteImage = async (imageUrl: string): Promise<RemoteImage> =
     throw new FetchImageError('Only http and https protocols are supported')
   }
 
-  const origin = parsed.origin
-  const matchedReferer = imageRefererMatches.find(({ url }) => url.test(parsed.href))
-  const resolvedReferer = matchedReferer?.referer ?? origin
-
-  let resolvedOrigin = origin
-  if (matchedReferer) {
-    try {
-      resolvedOrigin = new URL(resolvedReferer).origin
-    } catch {
-      resolvedOrigin = resolvedReferer
-    }
-  }
-
-  const headers = new Headers({
-    'User-Agent': DEFAULT_UA,
-    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-    Referer: resolvedReferer,
-    Origin: resolvedOrigin
-  })
-
+  const headers = buildUpstreamHeaders(parsed)
   const response = await fetch(parsed.toString(), {
     headers,
-    redirect: 'follow'
+    redirect: 'follow',
+    cf: {
+      cacheEverything: true,
+      cacheTtlByStatus: CACHE_TTL_BY_STATUS
+    }
   })
 
   if (!response.ok) {
     throw new FetchImageError(`Failed to fetch image: ${response.statusText}`, response.status)
   }
 
-  const buffer = await response.arrayBuffer()
-  const contentType = response.headers.get('content-type')
-
-  return { buffer, contentType }
+  return response
 }

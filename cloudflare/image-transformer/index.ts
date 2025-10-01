@@ -4,11 +4,15 @@ import { ensureCodecsInitialised } from './lib/codec-init'
 import { detectImageFormat, formatToContentType } from './lib/detect-format'
 import type { ImageFormat } from './lib/detect-format'
 import { resolveDimensions } from './lib/dimensions'
-import { FetchImageError, fetchRemoteImage } from './lib/image-fetcher'
+import { FetchImageError, fetchRemoteImageThroughProxy } from './lib/image-proxy-client'
 import { decodeImage, encodeImage, resizeImage } from './lib/image-processor'
 import { generateThumbHash } from './lib/thumbhash'
 
-const app = new Hono()
+type Bindings = {
+  IMAGE_PROXY: Fetcher
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 
 const parseDimensionParam = (value: string | undefined | null): number | undefined => {
   if (value === undefined || value === null || value === '') {
@@ -75,7 +79,7 @@ app.get('/', async (c) => {
 
   let remote
   try {
-    remote = await fetchRemoteImage(url)
+    remote = await fetchRemoteImageThroughProxy(url, c.env.IMAGE_PROXY)
   } catch (error) {
     if (error instanceof FetchImageError) {
       return c.json({ error: error.message }, error.status ?? 502)
@@ -177,7 +181,7 @@ app.get('/meta/', async (c) => {
 
   let remote
   try {
-    remote = await fetchRemoteImage(url)
+    remote = await fetchRemoteImageThroughProxy(url, c.env.IMAGE_PROXY)
   } catch (error) {
     if (error instanceof FetchImageError) {
       return c.json({ error: error.message }, error.status ?? 502)
