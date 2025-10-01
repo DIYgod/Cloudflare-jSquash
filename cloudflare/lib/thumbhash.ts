@@ -1,7 +1,7 @@
 import resize from '@jsquash/resize'
 import { rgbaToThumbHash } from 'thumbhash'
 
-const MAX_THUMB_DIMENSION = 100
+const MAX_THUMB_DIMENSION = 50
 
 const toBase64 = (bytes: Uint8Array): string => {
   let binary = ''

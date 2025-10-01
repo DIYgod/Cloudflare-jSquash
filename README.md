@@ -1,6 +1,6 @@
-# Cloudflare Image Converter
+# Edge Image Transformer
 
-A Cloudflare Worker built with [Hono](https://hono.dev/) and [jSquash](https://github.com/jamsinclair/jSquash) for on-demand image resizing and metadata retrieval.
+An Edge function built with [Hono](https://hono.dev/) and [jSquash](https://github.com/jamsinclair/jSquash) for on-demand image resizing and metadata retrieval.
 
 ## Routes
 
